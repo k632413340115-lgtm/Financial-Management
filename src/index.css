@@ -1,0 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #74070E;
+  --color-secondary: #F4E3B2;
+  --color-background: #F4E3B2;
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Montserrat", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .density-card {
+    @apply bg-white/60 p-4 rounded-lg border border-primary/20 shadow-sm transition-all;
+  }
+  .density-label {
+    @apply block text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1;
+  }
+  .density-input {
+    @apply w-full bg-white border border-gray-300 p-1.5 text-sm rounded outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40;
+  }
+  .density-btn-primary {
+    @apply bg-primary text-secondary px-4 py-2 font-bold text-xs uppercase rounded hover:opacity-90 transition-opacity;
+  }
+  .density-btn-outline {
+    @apply border border-primary text-primary px-4 py-2 font-bold text-xs uppercase rounded hover:bg-primary/5 transition-colors;
+  }
+}
