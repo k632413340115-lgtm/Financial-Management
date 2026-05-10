@@ -22,28 +22,45 @@ import { Stock } from '../types';
 
 interface InvestmentViewProps {
   monthlyNetCashFlow: number;
+  ratio: number;
+  setRatio: (val: number) => void;
+  expectedCAGR: number;
+  setExpectedCAGR: (val: number) => void;
+  stocks: Stock[];
+  setStocks: (val: Stock[]) => void;
 }
 
 const ASSET_CLASSES = [
-  { name: 'Stocks', ratio: 0.5, color: '#74070E' },
+  { name: 'Stocks', ratio: 0.5, color: '#f87171' },
   { name: 'Savings', ratio: 0.1, color: '#16a34a' },
   { name: 'Gold', ratio: 0.1, color: '#eab308' },
   { name: 'USD', ratio: 0.1, color: '#2563eb' },
   { name: 'Cash', ratio: 0.1, color: '#64748b' },
 ];
 
-export const InvestmentView: React.FC<InvestmentViewProps> = ({ monthlyNetCashFlow }) => {
-  const [ratio, setRatio] = React.useState(0.4); 
-  const [stocks, setStocks] = React.useState<Stock[]>(VIETNAMESE_STOCKS);
+export const InvestmentView: React.FC<InvestmentViewProps> = ({ 
+  monthlyNetCashFlow,
+  ratio,
+  setRatio,
+  expectedCAGR,
+  setExpectedCAGR,
+  stocks,
+  setStocks
+}) => {
   const [isEditingStocks, setIsEditingStocks] = React.useState(false);
-  const [expectedCAGR, setExpectedCAGR] = React.useState(0.18);
 
   const monthlyInvestment = Math.max(0, monthlyNetCashFlow * ratio);
   
   const simulationData = React.useMemo(() => {
     // Apply expectedCAGR to all stocks for the simulation
     const adjustedStocks = stocks.map(s => ({ ...s, expectedAnnualGrowth: expectedCAGR }));
-    return simulateGrowth(monthlyInvestment, 30, adjustedStocks);
+    const rawData = simulateGrowth(monthlyInvestment, 30, adjustedStocks);
+    
+    // Flatten byAsset for Recharts
+    return rawData.map(d => ({
+      ...d,
+      ...d.byAsset
+    }));
   }, [monthlyInvestment, stocks, expectedCAGR]);
 
   const milestones = SIMULATION_PERIODS.map(years => {
@@ -193,10 +210,12 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ monthlyNetCashFl
             <ResponsiveContainer width="100%" height="85%">
               <AreaChart data={simulationData}>
                 <defs>
-                  <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#74070E" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#74070E" stopOpacity={0}/>
-                  </linearGradient>
+                  {ASSET_CLASSES.map(asset => (
+                    <linearGradient key={`grad-${asset.name}`} id={`color-${asset.name}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={asset.color} stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor={asset.color} stopOpacity={0}/>
+                    </linearGradient>
+                  ))}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                 <XAxis 
@@ -213,25 +232,30 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({ monthlyNetCashFl
                 />
                 <Tooltip 
                    contentStyle={{ 
-                     borderRadius: '4px', 
-                     border: 'none', 
-                     backgroundColor: '#F4E3B2', 
-                     color: '#74070E',
+                     borderRadius: '8px', 
+                     border: '1px solid #e5e7eb', 
+                     backgroundColor: 'rgba(255, 255, 255, 0.95)', 
                      fontSize: '10px',
                      fontWeight: 'bold',
-                     boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                     boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                     backdropFilter: 'blur(4px)'
                    }}
-                   itemStyle={{ color: '#74070E' }}
-                   formatter={(v: number) => [new Intl.NumberFormat('vi-VN').format(v) + ' VND', 'Net Assets']}
+                   itemStyle={{ padding: '2px 0' }}
+                   formatter={(v: number, name: string) => [new Intl.NumberFormat('vi-VN').format(Math.round(v)) + ' VND', name]}
+                   labelFormatter={(label) => `Year ${label} Distribution`}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="investmentValue" 
-                  stroke="#74070E" 
-                  strokeWidth={2}
-                  fillOpacity={1} 
-                  fill="url(#colorVal)" 
-                />
+                {ASSET_CLASSES.slice().reverse().map(asset => (
+                  <Area 
+                    key={asset.name}
+                    type="monotone" 
+                    dataKey={asset.name} 
+                    stackId="1"
+                    stroke={asset.color} 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill={`url(#color-${asset.name})`} 
+                  />
+                ))}
               </AreaChart>
             </ResponsiveContainer>
           </section>

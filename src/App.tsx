@@ -10,19 +10,42 @@ import { RecordView } from './components/RecordView';
 import { InvestmentView } from './components/InvestmentView';
 import { AnalysisView } from './components/AnalysisView';
 import { storage } from './lib/storage';
-import { FinancialRecord } from './types';
+import { FinancialRecord, Stock } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Activity, CreditCard, DollarSign, TrendingUp, BarChart2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { formatVND, cn } from './lib/utils';
+import { VIETNAMESE_STOCKS } from './constants';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [records, setRecords] = useState<FinancialRecord[]>([]);
 
+  // Lifted Investment State
+  const [investmentRatio, setInvestmentRatio] = useState(0.4);
+  const [investmentCAGR, setInvestmentCAGR] = useState(0.18);
+  const [investmentStocks, setInvestmentStocks] = useState<Stock[]>(VIETNAMESE_STOCKS);
+
   useEffect(() => {
     setRecords(storage.getRecords());
+    
+    // Load persisted settings
+    const savedSettings = storage.getSettings();
+    if (savedSettings) {
+      if (savedSettings.ratio) setInvestmentRatio(savedSettings.ratio);
+      if (savedSettings.cagr) setInvestmentCAGR(savedSettings.cagr);
+      if (savedSettings.stocks) setInvestmentStocks(savedSettings.stocks);
+    }
   }, []);
+
+  // Save changes to settings
+  useEffect(() => {
+    storage.saveSettings({
+      ratio: investmentRatio,
+      cagr: investmentCAGR,
+      stocks: investmentStocks
+    });
+  }, [investmentRatio, investmentCAGR, investmentStocks]);
 
   const handleAddRecord = (data: Omit<FinancialRecord, 'id' | 'userId' | 'createdAt'>) => {
     storage.saveRecord(data);
@@ -57,7 +80,7 @@ export default function App() {
               <div className="bg-primary p-3 rounded shadow-sm">
                 <p className="text-[10px] uppercase text-secondary/70 font-bold tracking-widest">Est. Monthly Inv.</p>
                 <p className="text-xl text-secondary font-black">
-                  {new Intl.NumberFormat('vi-VN').format(totals.net * 0.4)} <span className="text-[9px] opacity-60 uppercase">VND</span>
+                  {new Intl.NumberFormat('vi-VN').format(totals.net * investmentRatio)} <span className="text-[9px] opacity-60 uppercase">VND</span>
                 </p>
               </div>
             </section>
@@ -226,9 +249,19 @@ export default function App() {
           </div>
         );
       case 'invest':
-        return <InvestmentView monthlyNetCashFlow={totals.net} />;
+        return (
+          <InvestmentView 
+            monthlyNetCashFlow={totals.net}
+            ratio={investmentRatio}
+            setRatio={setInvestmentRatio}
+            expectedCAGR={investmentCAGR}
+            setExpectedCAGR={setInvestmentCAGR}
+            stocks={investmentStocks}
+            setStocks={setInvestmentStocks}
+          />
+        );
       case 'analysis':
-        return <AnalysisView />;
+        return <AnalysisView ratio={investmentRatio} expectedCAGR={investmentCAGR} />;
       default:
         return null;
     }

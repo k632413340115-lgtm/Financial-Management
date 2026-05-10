@@ -6,11 +6,21 @@
 import { FinancialRecord } from '../types';
 
 const STORAGE_KEY = 'finflow_records';
+const SETTINGS_KEY = 'finflow_settings';
 
 export const storage = {
   getRawRecords: (): FinancialRecord[] => {
     const data = localStorage.getItem(STORAGE_KEY);
     return data ? JSON.parse(data) : [];
+  },
+
+  getSettings: () => {
+    const data = localStorage.getItem(SETTINGS_KEY);
+    return data ? JSON.parse(data) : null;
+  },
+
+  saveSettings: (settings: any) => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   },
 
   getRecords: (): FinancialRecord[] => {

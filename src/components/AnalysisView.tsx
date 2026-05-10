@@ -23,7 +23,12 @@ import { simulateGrowthSimple } from '../lib/simulationEngine';
 import { VIETNAMESE_STOCKS } from '../constants';
 import { cn } from '../lib/utils';
 
-export const AnalysisView: React.FC = () => {
+interface AnalysisViewProps {
+  ratio: number;
+  expectedCAGR: number;
+}
+
+export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR }) => {
   const data = storage.getAnalysisData();
   const totals = storage.getMonthlyTotals();
   
@@ -33,9 +38,9 @@ export const AnalysisView: React.FC = () => {
   const investPower = totals.income > 0 ? (totals.net / totals.income).toFixed(1) : "0";
   
   // Scenarios for growth chart
-  const monthlyInvest = Math.max(0, totals.net * 0.4);
+  const monthlyInvest = Math.max(0, totals.net * ratio);
   const scenarios = {
-    base: simulateGrowthSimple(monthlyInvest, 30, 0.175),
+    base: simulateGrowthSimple(monthlyInvest, 30, expectedCAGR),
     conservative: simulateGrowthSimple(monthlyInvest, 30, 0.07),
     optimistic: simulateGrowthSimple(monthlyInvest, 30, 0.22)
   };
@@ -87,7 +92,7 @@ export const AnalysisView: React.FC = () => {
         />
         <AnalysisCard 
           title="Est. Monthly Gain" 
-          value={`${new Intl.NumberFormat('vi-VN').format(Math.round(totalWealth * (0.175 / 12)))} VND`} 
+          value={`${new Intl.NumberFormat('vi-VN').format(Math.round(totalWealth * (expectedCAGR / 12)))} VND`} 
           subValue="Monthly Passive"
         />
         <AnalysisCard 
