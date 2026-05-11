@@ -34,21 +34,18 @@ export const storage = {
       expandedRecords.push(record);
       
       if (record.isFixed) {
-        // record.date is "YYYY-MM-DD"
-        let startDate = new Date(record.date);
+        const startDate = new Date(record.date);
         const targetDay = startDate.getUTCDate();
-        let current = new Date(startDate.getTime());
-        
         const actualLimit = record.recurringUntil ? new Date(record.recurringUntil) : now;
         const limitStr = actualLimit.toISOString().split('T')[0];
 
+        let iterationMonth = 1;
         while (true) {
-          // Move to next month safely
-          const next = new Date(current.getTime());
-          next.setUTCMonth(next.getUTCMonth() + 1);
+          const next = new Date(startDate.getTime());
+          next.setUTCMonth(startDate.getUTCMonth() + iterationMonth);
           
-          // Handle day-of-month overflow (e.g., Jan 31 -> Feb 28/29)
-          // If the day changed, it means it wrapped to the next month's beginning
+          // Handle day-of-month overflow (e.g., Jan 31 -> Feb 28)
+          // If the month jumped more than iterationMonth, it means we overflowed
           if (next.getUTCDate() !== targetDay) {
             next.setUTCDate(0); // Set to last day of the intended month
           }
@@ -62,7 +59,10 @@ export const storage = {
             date: nextStr,
             isVirtual: true,
           } as any);
-          current = next;
+          
+          iterationMonth++;
+          // Safety break to prevent absolute infinite loops if limit is too far
+          if (iterationMonth > 1200) break; // Limit to 100 years
         }
       }
     });
