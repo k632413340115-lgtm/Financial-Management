@@ -120,9 +120,11 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
                     tickLine={false} 
                     tick={{fontSize: 9, fontWeight: 700}} 
                     tickFormatter={(v) => {
+                      if (!v || typeof v !== 'string' || !v.includes('-')) return v;
                       const [y, m] = v.split('-');
                       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                      return `${months[parseInt(m)-1]} ${y}`;
+                      const idx = parseInt(m) - 1;
+                      return months[idx] ? `${months[idx]} ${y}` : v;
                     }}
                   />
                   <YAxis 

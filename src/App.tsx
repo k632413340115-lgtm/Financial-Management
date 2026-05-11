@@ -40,11 +40,13 @@ export default function App() {
 
   // Save changes to settings
   useEffect(() => {
-    storage.saveSettings({
-      ratio: investmentRatio,
-      cagr: investmentCAGR,
-      stocks: investmentStocks
-    });
+    if (investmentRatio !== undefined && investmentCAGR !== undefined && investmentStocks?.length > 0) {
+      storage.saveSettings({
+        ratio: investmentRatio,
+        cagr: investmentCAGR,
+        stocks: investmentStocks
+      });
+    }
   }, [investmentRatio, investmentCAGR, investmentStocks]);
 
   const handleAddRecord = (data: Omit<FinancialRecord, 'id' | 'userId' | 'createdAt'>) => {
@@ -144,9 +146,11 @@ export default function App() {
                       tickLine={false} 
                       tick={{fontSize: 9, fontWeight: 700}} 
                       tickFormatter={(v) => {
+                        if (!v || typeof v !== 'string' || !v.includes('-')) return v;
                         const [y, m] = v.split('-');
                         const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        return `${shortMonths[parseInt(m)-1]} ${y}`;
+                        const idx = parseInt(m) - 1;
+                        return shortMonths[idx] ? `${shortMonths[idx]} ${y}` : v;
                       }}
                     />
                     <YAxis 
@@ -199,9 +203,11 @@ export default function App() {
                         <tr key={data.month} className={cn("group transition-colors", idx === 0 ? "bg-primary/5" : "hover:bg-primary/[0.02]")}>
                           <td className="py-3 text-[10px] font-black text-primary italic">
                             {(() => {
+                              if (!data.month || typeof data.month !== 'string' || !data.month.includes('-')) return data.month;
                               const [y, m] = data.month.split('-');
                               const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                              return `${months[parseInt(m)-1]} ${y}`;
+                              const idx = parseInt(m) - 1;
+                              return months[idx] ? `${months[idx]} ${y}` : data.month;
                             })()}
                           </td>
                           <td className="py-3 text-[9px] font-medium text-gray-500 text-center">
