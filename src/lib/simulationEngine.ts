@@ -54,14 +54,10 @@ export function simulateGrowth(
     const monthlyToUSD = monthlyInvestment * 0.1;
 
     // 2. Growth for non-stock assets
-    const savingsRate = Math.pow(1.07, 1/12) - 1;
-    const goldRate = Math.pow(1.06, 1/12) - 1;
-    const usdRate = Math.pow(1.02, 1/12) - 1;
-
-    assetBalances.Savings = (assetBalances.Savings + monthlyToSavings) * (1 + savingsRate);
+    assetBalances.Savings = (assetBalances.Savings + monthlyToSavings) * (1 + Math.pow(1 + 0.07, 1/12) - 1);
     assetBalances.Cash = (assetBalances.Cash + monthlyToCash);
-    assetBalances.Gold = (assetBalances.Gold + monthlyToGold) * (1 + goldRate);
-    assetBalances.USD = (assetBalances.USD + monthlyToUSD) * (1 + usdRate);
+    assetBalances.Gold = (assetBalances.Gold + monthlyToGold) * (1 + Math.pow(1 + 0.06, 1/12) - 1);
+    assetBalances.USD = (assetBalances.USD + monthlyToUSD) * (1 + Math.pow(1 + 0.02, 1/12) - 1);
 
     // 3. Growth for stocks (divided equally into 5)
     const stockContribution = monthlyToStocks / stocks.length;
