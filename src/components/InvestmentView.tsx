@@ -130,21 +130,21 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({
             </div>
 
             <div className="mt-2 space-y-2">
-              <div className="text-[9px] uppercase font-bold opacity-60 tracking-widest leading-none">Asset Class Allocation (90% Requested)</div>
-              <div className="h-2 w-full flex rounded-full overflow-hidden border border-white/10">
+              <div className="text-[9px] font-black uppercase opacity-60 tracking-widest leading-none">Capital Allocation Strategy</div>
+              <div className="h-2 w-full flex rounded-full overflow-hidden border border-white/10 shadow-inner">
                 {ASSET_CLASSES.map(asset => (
                   <div 
                     key={asset.name} 
-                    style={{ width: `${(asset.ratio / 0.9) * 100}%`, backgroundColor: asset.color }} 
-                    title={asset.name}
+                    style={{ width: `${asset.ratio * 100}%`, backgroundColor: asset.color }} 
+                    title={`${asset.name}: ${asset.ratio * 100}%`}
                   />
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 mt-1">
                  {ASSET_CLASSES.map(asset => (
                    <div key={asset.name} className="flex items-center gap-1">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: asset.color }} />
-                      <span className="text-[8px] font-bold uppercase">{asset.name} ({asset.ratio * 100}%)</span>
+                      <span className="text-[8px] font-bold uppercase whitespace-nowrap">{asset.name} ({Math.round(asset.ratio * 100)}%)</span>
                    </div>
                  ))}
               </div>

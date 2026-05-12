@@ -25,6 +25,11 @@ export const DEFAULT_ALLOCATIONS: AssetAllocation[] = [
  * Enhanced simulation engine for investment growth.
  * Uses Monthly Compounding: New Balance = (Current Balance + Monthly Investment) * (1 + Monthly Rate)
  * Monthly Rate = Annual CAGR / 12
+ * 
+ * Logic validation: 
+ * Monthly: 1.2M, Rate: 18% (0.18)
+ * 10 Years: ~400M
+ * 30 Years: ~17B
  */
 export function simulateGrowth(
   monthlyInvestment: number,
@@ -33,7 +38,7 @@ export function simulateGrowth(
 ) {
   const months = years * 12;
   
-  let totalContributed = 0;
+  // Track balances for each asset category
   const assetBalances: Record<string, number> = {
     Stocks: 0,
     Savings: 0,
@@ -41,46 +46,64 @@ export function simulateGrowth(
     Gold: 0,
     USD: 0,
   };
-  
+
+  // Internal rates (Annual / 12)
+  const rates = {
+    Savings: 0.07 / 12,
+    Cash: 0,
+    Gold: 0.06 / 12,
+    USD: 0.02 / 12
+  };
+
   // Track individual stocks
   const stockBalances: Record<string, number> = {};
-  stocks.forEach(s => stockBalances[s.symbol] = 0);
+  stocks.forEach(s => {
+    stockBalances[s.symbol] = 0;
+  });
 
+  let totalContributed = 0;
   const results: MonthlySimulationResult[] = [];
 
   for (let m = 1; m <= months; m++) {
-    // 1. Distribute monthly investment to asset classes (100% allocation)
-    const monthlyToStocks = monthlyInvestment * 0.5;
-    const monthlyToSavings = monthlyInvestment * 0.2;
-    const monthlyToCash = monthlyInvestment * 0.1;
-    const monthlyToGold = monthlyInvestment * 0.1;
-    const monthlyToUSD = monthlyInvestment * 0.1;
+    // 1. Distribute monthly investment to asset classes (Total = 90% per image)
+    const monthlyToStocks = monthlyInvestment * 0.50;
+    const monthlyToSavings = monthlyInvestment * 0.10;
+    const monthlyToCash = monthlyInvestment * 0.10;
+    const monthlyToGold = monthlyInvestment * 0.10;
+    const monthlyToUSD = monthlyInvestment * 0.10;
 
-    // 2. Growth for non-stock assets (Annual CAGR / 12)
-    assetBalances.Savings = (assetBalances.Savings + monthlyToSavings) * (1 + 0.07 / 12);
-    assetBalances.Cash = (assetBalances.Cash + monthlyToCash); // Cash has 0 growth
-    assetBalances.Gold = (assetBalances.Gold + monthlyToGold) * (1 + 0.06 / 12);
-    assetBalances.USD = (assetBalances.USD + monthlyToUSD) * (1 + 0.02 / 12);
+    // 2. Apply monthly interest then Add monthly contribution
+    // Formula per image: balance = (balance * (1 + r)) + contribution
+    // This matches FV = P * [(1+r)^n - 1] / r
+    
+    assetBalances.Savings = (assetBalances.Savings * (1 + rates.Savings)) + monthlyToSavings;
+    assetBalances.Cash = (assetBalances.Cash + monthlyToCash); // 0 growth
+    assetBalances.Gold = (assetBalances.Gold * (1 + rates.Gold)) + monthlyToGold;
+    assetBalances.USD = (assetBalances.USD * (1 + rates.USD)) + monthlyToUSD;
 
     // 3. Growth for stocks (divided equally among provided stocks)
     if (stocks.length > 0) {
       const stockContribution = monthlyToStocks / stocks.length;
       stocks.forEach(stock => {
-        // Validation: If Rate is > 1 (e.g. 18), divide by 100 to get decimal
-        const cagr = stock.expectedAnnualGrowth > 1 ? stock.expectedAnnualGrowth / 100 : stock.expectedAnnualGrowth;
-        const monthlyRate = cagr / 12;
-        stockBalances[stock.symbol] = (stockBalances[stock.symbol] + stockContribution) * (1 + monthlyRate);
+        // Force normalization: 18 -> 0.18, 0.18 -> 0.18
+        let annualGrowth = stock.expectedAnnualGrowth;
+        if (annualGrowth > 1) annualGrowth = annualGrowth / 100;
+        
+        const stockMonthlyRate = annualGrowth / 12;
+        // Formula per image: balance = (balance * (1 + r)) + contribution
+        stockBalances[stock.symbol] = (stockBalances[stock.symbol] * (1 + stockMonthlyRate)) + stockContribution;
       });
       assetBalances.Stocks = Object.values(stockBalances).reduce((a, b) => a + b, 0);
     } else {
-      // If no stocks provided, treat stock portion as cash
-      assetBalances.Cash += monthlyToStocks;
-      assetBalances.Stocks = 0;
+      // Default stock growth (18%) if no stocks selected
+      const defaultStockMonthlyRate = 0.18 / 12;
+      assetBalances.Stocks = (assetBalances.Stocks * (1 + defaultStockMonthlyRate)) + monthlyToStocks;
     }
 
     const currentTotalValue = Object.values(assetBalances).reduce((a, b) => a + b, 0);
     totalContributed += monthlyInvestment;
 
+    // Record results at the end of each year and the final month
     if (m % 12 === 0 || m === months) {
       results.push({
         month: m,
@@ -96,8 +119,8 @@ export function simulateGrowth(
 }
 
 /**
- * Simplified growth simulation for validation or quick checks.
- * Monthly Compounding: New Balance = (Current Balance + Monthly Investment) * (1 + Monthly Rate)
+ * Simplified growth simulation for validation.
+ * Formula: New Balance = (Current Balance + Monthly Investment) * (1 + Monthly Rate)
  */
 export function simulateGrowthSimple(
   monthlyInvestment: number,
@@ -105,16 +128,20 @@ export function simulateGrowthSimple(
   annualRate: number
 ) {
   const months = years * 12;
-  // Validation: If Rate is > 1 (e.g. 18), divide by 100
-  const cagr = annualRate > 1 ? annualRate / 100 : annualRate;
-  const monthlyRate = cagr / 12;
+  
+  // Normalize rate: 18 -> 0.18, 0.18 -> 0.18
+  let rate = annualRate;
+  if (rate > 1) rate = rate / 100;
+  
+  const monthlyRate = rate / 12;
   
   let balance = 0;
   const results: { year: number; value: number }[] = [];
   
   for (let m = 1; m <= months; m++) {
-    // Calculation Loop: New Balance = (Current Balance + Monthly Investment) * (1 + Monthly Rate)
-    balance = (balance + monthlyInvestment) * (1 + monthlyRate);
+    // Formula per image: balance = (balance * (1 + r)) + contribution
+    // This matches FV = P * [(1+r)^n - 1] / r
+    balance = (balance * (1 + monthlyRate)) + monthlyInvestment;
     
     if (m % 12 === 0 || m === months) {
       results.push({

@@ -107,12 +107,11 @@ export const storage = {
     };
 
     records.forEach(r => {
-      // Overall totals should only count records that have actually occurred (past or today)
-      if (r.date <= todayStr) {
-        if (r.type === 'income') totals.allTimeIncome += r.amount;
-        else totals.allTimeExpense += r.amount;
-      }
+      // Cumulative totals include all records in the system
+      if (r.type === 'income') totals.allTimeIncome += r.amount;
+      else totals.allTimeExpense += r.amount;
 
+      // Current month totals
       if (r.date.startsWith(currentMonthStr)) {
         if (r.type === 'income') totals.income += r.amount;
         else totals.expense += r.amount;
