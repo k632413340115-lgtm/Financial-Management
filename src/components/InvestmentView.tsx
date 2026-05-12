@@ -227,7 +227,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                  tickFormatter={(value) => {
+                    if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+                    return `${(value / 1000000).toFixed(0)}M`;
+                  }}
                   tick={{fontSize: 9, fill: '#999'}}
                 />
                 <Tooltip 

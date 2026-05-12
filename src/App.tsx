@@ -74,11 +74,11 @@ export default function App() {
             </header>
 
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <FinanceSummaryCard title="Total Income" amount={totals.allTimeIncome} type="income" />
-              <FinanceSummaryCard title="Total Expenses" amount={totals.allTimeExpense} type="expense" />
-              <FinanceSummaryCard title="Monthly Yield" amount={totals.net} type="net" />
+              <FinanceSummaryCard title="Monthly Income" amount={totals.income} type="income" />
+              <FinanceSummaryCard title="Monthly Expenses" amount={totals.expense} type="expense" />
+              <FinanceSummaryCard title="Monthly Surplus" amount={totals.net} type="net" />
               <div className="bg-primary p-3 rounded shadow-sm">
-                <p className="text-[10px] uppercase text-secondary/70 font-bold tracking-widest">Est. Monthly Inv.</p>
+                <p className="text-[10px] uppercase text-secondary/70 font-bold tracking-widest">Inv. Potential ({Math.round(investmentRatio * 100)}%)</p>
                 <p className="text-xl text-secondary font-black">
                   {new Intl.NumberFormat('vi-VN').format(totals.net * investmentRatio)} <span className="text-[9px] opacity-60 uppercase">VND</span>
                 </p>

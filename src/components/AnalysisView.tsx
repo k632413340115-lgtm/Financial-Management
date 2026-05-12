@@ -200,7 +200,10 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
                     axisLine={false} 
                     tickLine={false} 
                     tick={{fontSize: 9}} 
-                    tickFormatter={(v) => `${(v/1000000000).toFixed(1)}B`}
+                    tickFormatter={(v) => {
+                       if (v >= 1000000000) return `${(v / 1000000000).toFixed(1)}B`;
+                       return `${(v / 1000000).toFixed(0)}M`;
+                    }}
                   />
                   <Tooltip 
                     contentStyle={{ borderRadius: '4px', border: 'none', background: '#F4E3B2', color: '#74070E', fontSize: '10px', fontWeight: 'bold' }}
