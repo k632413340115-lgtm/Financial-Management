@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { LayoutDashboard, Wallet, TrendingUp, PieChart, Menu, X, Activity } from 'lucide-react';
+import { LayoutDashboard, Wallet, TrendingUp, PieChart, Menu, X, Activity, BarChart2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface NavItemProps {
@@ -32,13 +32,94 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, active, onClick })
 
 export const AppLayout: React.FC<{ children: React.ReactNode; activeTab: string; setActiveTab: (tab: string) => void; portfolioValue: string }> = ({ children, activeTab, setActiveTab, portfolioValue }) => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [marketData, setMarketData] = React.useState({
+    index: 1284.12,
+    change: 0.45,
+    status: 'HOSE OPEN'
+  });
+
+  const fetchMarketData = React.useCallback(async () => {
+    try {
+      // Determine market status based on Vietnam time (UTC+7)
+      const now = new Date();
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const vntime = new Date(utc + (3600000 * 7));
+      const day = vntime.getDay();
+      const hours = vntime.getHours();
+      const minutes = vntime.getMinutes();
+      const isWeekday = day >= 1 && day <= 5;
+      const isOpen = isWeekday && (
+        (hours === 9 && minutes >= 0) || 
+        (hours > 9 && hours < 11) || 
+        (hours === 11 && minutes <= 30) ||
+        (hours === 13 && minutes >= 0) ||
+        (hours > 13 && hours < 14) ||
+        (hours === 14 && minutes <= 45)
+      );
+
+      const status = isOpen ? 'HOSE OPEN' : (isWeekday ? 'HOSE CLOSED' : 'WEEKEND');
+
+      // Try to fetch from real VNDirect API (might fail CORS in browser, but good to try)
+      const response = await fetch('https://finfo-api.vndirect.com.vn/v4/stock_prices?symbols=VNINDEX');
+      const data = await response.json();
+      
+      if (data && data.data && data.data.length > 0) {
+        const item = data.data[0];
+        const latestPrice = item.adPrices || item.close;
+        const prevPrice = item.prevClose;
+        const changePercent = prevPrice ? ((latestPrice - prevPrice) / prevPrice) * 100 : 0.45;
+        
+        setMarketData({
+          index: latestPrice,
+          change: Number(changePercent.toFixed(2)),
+          status
+        });
+        return;
+      }
+      throw new Error("No data");
+    } catch (e) {
+      // Fallback: Simulation logic if API fails or CORS blocks it
+      const randomVar = (Math.random() * 2 - 1) * 0.1;
+
+      // Recalculate status for fallback as well
+      const now = new Date();
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const vntime = new Date(utc + (3600000 * 7));
+      const day = vntime.getDay();
+      const hours = vntime.getHours();
+      const minutes = vntime.getMinutes();
+      const isWeekday = day >= 1 && day <= 5;
+      const isOpen = isWeekday && (
+        (hours === 9 && minutes >= 0) || 
+        (hours > 9 && hours < 11) || 
+        (hours === 11 && minutes <= 30) ||
+        (hours === 13 && minutes >= 0) ||
+        (hours > 13 && hours < 15)
+      );
+      const status = isOpen ? 'HOSE OPEN' : (isWeekday ? 'HOSE CLOSED' : 'WEEKEND');
+
+      setMarketData(prev => ({
+        ...prev,
+        index: Number((prev.index + randomVar).toFixed(2)),
+        change: Number((prev.change + (randomVar/10)).toFixed(2)),
+        status
+      }));
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchMarketData();
+    const interval = setInterval(fetchMarketData, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [fetchMarketData]);
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'income', label: 'Income', icon: Wallet },
-    { id: 'expense', label: 'Expenses', icon: PieChart },
-    { id: 'invest', label: 'Investment', icon: TrendingUp },
-    { id: 'analysis', label: 'Analysis', icon: Activity },
+    { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+    { id: 'income', label: 'Cash Inflows', icon: Wallet },
+    { id: 'expense', label: 'Cash Outflows', icon: PieChart },
+    { id: 'cashflow', label: 'Net Cash Flow', icon: BarChart2 },
+    { id: 'invest', label: 'Simulator', icon: TrendingUp },
+    { id: 'analysis', label: 'Allocation', icon: Activity },
   ];
 
   return (
@@ -54,7 +135,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode; activeTab: string;
         <div className="flex items-center gap-6 text-secondary/90">
           <div className="flex flex-col items-end">
             <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest leading-none">Net Position</span>
-            <span className="text-sm font-black">{portfolioValue} <span className="text-[10px] opacity-60">VND</span></span>
+            <span className="text-sm font-black">{portfolioValue}</span>
           </div>
           <button 
             onClick={() => setActiveTab('income')}
@@ -105,11 +186,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode; activeTab: string;
       <footer className="h-7 bg-primary text-secondary flex items-center px-4 justify-between text-[9px] font-medium uppercase tracking-[0.1em] shrink-0">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-            Market Status: <span className="text-green-400 font-bold">HOSE OPEN</span>
+            <span className={cn(
+              "w-1.5 h-1.5 rounded-full animate-pulse",
+              marketData.status === 'HOSE OPEN' ? "bg-green-500" : "bg-red-500"
+            )} />
+            Market Status: <span className={cn(
+              "font-bold",
+              marketData.status === 'HOSE OPEN' ? "text-green-400" : "text-red-400"
+            )}>{marketData.status}</span>
           </span>
           <span className="opacity-20">|</span>
-          <span>VN-INDEX: 1,284.12 <span className="text-green-400 font-bold ml-1">▲ 0.45%</span></span>
+          <span>VN-INDEX: {new Intl.NumberFormat('vi-VN').format(marketData.index)} <span className={cn("font-bold ml-1", marketData.change >= 0 ? "text-green-400" : "text-red-400")}>
+            {marketData.change >= 0 ? '▲' : '▼'} {Math.abs(marketData.change)}%
+          </span></span>
         </div>
         <div className="flex gap-4 opacity-70">
           <span>Database: LIVE</span>

@@ -21,21 +21,25 @@ import { Activity, Info, BarChart2, TrendingUp, Shield, Cpu } from 'lucide-react
 import { storage } from '../lib/storage';
 import { simulateGrowthSimple } from '../lib/simulationEngine';
 import { VIETNAMESE_STOCKS } from '../constants';
-import { cn } from '../lib/utils';
+import { cn, formatVND } from '../lib/utils';
 
 interface AnalysisViewProps {
   ratio: number;
-  expectedCAGR: number;
+  actualAllocations: { name: string; actual: number; target: number; color: string }[];
+  setActualAllocations: (val: { name: string; actual: number; target: number; color: string }[]) => void;
 }
 
-export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR }) => {
+export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, actualAllocations, setActualAllocations }) => {
   const data = storage.getAnalysisData();
   const totals = storage.getMonthlyTotals();
+  const expectedCAGR = 0.18;
   
   const totalWealth = totals.allTimeIncome - totals.allTimeExpense;
   const savingsRatio = totals.income > 0 ? (totals.net / totals.income) * 100 : 0;
   // Investment power: Ratio of Net Flow to Income (normalized)
   const investPower = totals.income > 0 ? (totals.net / totals.income).toFixed(1) : "0";
+
+  const allocatedTotal = actualAllocations.reduce((acc, curr) => acc + curr.actual, 0);
   
   // Scenarios for growth chart
   const monthlyInvest = Math.max(0, totals.net * ratio);
@@ -47,9 +51,9 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
 
   const growthData = scenarios.base.map((d, i) => ({
     year: d.year,
-    base: d.value + totalWealth * Math.pow(1.1, d.year), // Add compounded existing wealth
-    conservative: scenarios.conservative[i].value + totalWealth * Math.pow(1.05, d.year),
-    optimistic: scenarios.optimistic[i].value + totalWealth * Math.pow(1.2, d.year)
+    base: Math.max(0, d.value + totalWealth * Math.pow(1.1, d.year)), // Add compounded existing wealth
+    conservative: Math.max(0, scenarios.conservative[i].value + totalWealth * Math.pow(1.05, d.year)),
+    optimistic: Math.max(0, scenarios.optimistic[i].value + totalWealth * Math.pow(1.2, d.year))
   }));
 
   // Financial Freedom Year Estimation
@@ -57,6 +61,17 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
   const annualExpenses = totals.expense * 12;
   const targetFREEDOM = annualExpenses > 0 ? annualExpenses * 25 : 10000000000;
   const freedomYear = growthData.find(d => d.base >= targetFREEDOM)?.year || ">30";
+
+  const getColorClass = (color: string, type: 'dot' | 'bar' | 'actual') => {
+    const maps: Record<string, { dot: string; bar: string; actual: string }> = {
+      'red': { dot: 'bg-red-500', bar: 'bg-red-500', actual: 'bg-red-400' },
+      'green': { dot: 'bg-green-600', bar: 'bg-green-600', actual: 'bg-green-400' },
+      'slate': { dot: 'bg-slate-500', bar: 'bg-slate-500', actual: 'bg-slate-400' },
+      'amber': { dot: 'bg-amber-500', bar: 'bg-amber-500', actual: 'bg-amber-400' },
+      'blue': { dot: 'bg-blue-600', bar: 'bg-blue-600', actual: 'bg-blue-400' },
+    };
+    return maps[color] ? maps[color][type] : 'bg-gray-400';
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-1000">
@@ -82,7 +97,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
         <AnalysisCard 
           title="Savings Ratio" 
           value={`${savingsRatio.toFixed(1)}%`} 
-          subValue="Elite Position"
+          subValue={savingsRatio > 30 ? "Elite Position" : "Building Phase"}
           accent="text-primary"
         />
         <AnalysisCard 
@@ -92,15 +107,142 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
         />
         <AnalysisCard 
           title="Est. Monthly Gain" 
-          value={`${new Intl.NumberFormat('vi-VN').format(Math.round(totalWealth * (expectedCAGR / 12)))} VND`} 
+          value={formatVND(totalWealth * (expectedCAGR / 12))} 
           subValue="Monthly Passive"
         />
         <AnalysisCard 
           title="Health Score" 
-          value="A+" 
+          value={savingsRatio > 20 ? "A+" : "B"} 
           subValue="System Assessment"
-          accent="text-green-600"
+          accent={savingsRatio > 20 ? "text-green-600" : "text-yellow-600"}
         />
+      </section>
+
+      {/* Allocation Comparison Section */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Standard Benchmark */}
+        <div className="bg-white p-6 border border-primary/5 rounded shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-[10px] font-black text-primary uppercase tracking-widest">Standard Benchmark</h3>
+            <span className="text-[9px] font-bold text-gray-400">Total Capital: {formatVND(totalWealth)}</span>
+          </div>
+          <div className="space-y-4">
+            {actualAllocations.map(asset => (
+              <div key={asset.name} className="flex flex-col gap-1">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                  <span className="flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-full", getColorClass(asset.color, 'dot'))} />
+                    {asset.name}
+                  </span>
+                  <span>{asset.target}% — {formatVND(totalWealth * (asset.target / 100))}</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 rounded-full">
+                  <div 
+                    className={cn("h-full rounded-full transition-all duration-1000", getColorClass(asset.color, 'bar'))} 
+                    style={{ width: `${asset.target}%` }} 
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Your Actual Allocation */}
+        <div className="bg-primary p-6 rounded shadow-lg text-secondary relative overflow-hidden">
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-[10px] font-black uppercase tracking-widest">Your Actual Allocation</h3>
+              <div className="flex flex-col items-end">
+                <span className="text-[12px] font-black">{allocatedTotal}% ALLOCATED</span>
+                <div className="w-24 h-1 bg-white/20 rounded-full mt-1 overflow-hidden">
+                  <div className="h-full bg-white transition-all duration-1000" style={{ width: `${allocatedTotal}%` }} />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-end justify-between gap-2 h-[220px] px-2 mb-2">
+               {actualAllocations.map((asset, idx) => (
+                <div key={asset.name} className="flex-1 flex flex-col items-center gap-2 h-full">
+                  <div className="relative w-full flex items-end justify-center h-full group">
+                    {/* Target ghost bar */}
+                    <div 
+                      className="absolute bottom-0 w-full max-w-[40px] bg-white/10 rounded-t-lg transition-all duration-500" 
+                      style={{ height: `${asset.target}%` }} 
+                    />
+                    {/* Actual bar */}
+                    <motion.div 
+                      initial={{ height: 0 }}
+                      animate={{ height: `${asset.actual}%` }}
+                      className={cn("w-full max-w-[40px] rounded-t-lg shadow-lg relative z-10", getColorClass(asset.color, 'actual'))} 
+                    >
+                      <div className="absolute -top-9 left-0 right-0 text-center text-[7px] font-black leading-tight pointer-events-none">
+                        {asset.actual}%<br/>
+                        <span className="bg-primary/80 backdrop-blur-sm px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap shadow-xl">
+                          {formatVND(totalWealth * (asset.actual / 100))}
+                        </span>
+                      </div>
+                    </motion.div>
+                  </div>
+                  <div className="flex flex-col items-center w-full gap-1">
+                    <span className="text-[7px] font-black uppercase tracking-tighter text-center h-4 line-clamp-1">{asset.name}</span>
+                    <div className="relative w-full">
+                      <input 
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={asset.actual}
+                        onChange={(e) => {
+                          const newVal = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                          const next = [...actualAllocations];
+                          next[idx] = { ...next[idx], actual: newVal };
+                          setActualAllocations(next);
+                        }}
+                        className="w-full bg-white/10 border border-white/10 text-white text-[10px] font-black py-1 px-1 rounded text-center focus:outline-none focus:border-white/40 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] opacity-40 font-bold pointer-events-none">%</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+            <Shield size={120} />
+          </div>
+        </div>
+      </section>
+
+      {/* Rebalancing Suggestions */}
+      <section className="bg-white p-6 border border-primary/5 rounded shadow-sm">
+        <h3 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">Rebalancing Suggestions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {actualAllocations.map(asset => {
+            const diff = asset.target - asset.actual;
+            const currentAmount = totalWealth * (asset.actual / 100);
+            const targetAmount = totalWealth * (asset.target / 100);
+            const diffAmount = Math.abs(targetAmount - currentAmount);
+
+            if (Math.abs(diff) < 2) return null;
+            
+            return (
+              <SuggestionCard 
+                key={asset.name}
+                assetName={asset.name}
+                diff={diff}
+                diffAmount={diffAmount}
+                currentPct={asset.actual}
+                targetPct={asset.target}
+                currentVal={currentAmount}
+                targetVal={targetAmount}
+              />
+            );
+          }).filter(Boolean)}
+          {actualAllocations.every(asset => Math.abs(asset.target - asset.actual) < 2) && (
+             <div className="col-span-full py-8 text-center bg-green-50 rounded border border-green-100">
+                <span className="text-green-700 font-black uppercase tracking-widest text-xs">Portfolio is Perfectly Balanced</span>
+             </div>
+          )}
+        </div>
       </section>
 
       {/* Middle Charts Section */}
@@ -129,7 +271,10 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
                     axisLine={false} 
                     tickLine={false} 
                     tick={{fontSize: 9}} 
-                    tickFormatter={(v) => `${(v/1000000).toFixed(1)}M`}
+                    tickFormatter={(v) => {
+                      if (v >= 1000000) return `${(v/1000000).toFixed(1)}M`;
+                      return formatVND(v);
+                    }}
                   />
                   <Tooltip 
                     cursor={{fill: 'rgba(116, 7, 14, 0.02)'}}
@@ -166,14 +311,14 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
               <div>
                 <p className="text-[8px] font-black uppercase tracking-widest opacity-50 mb-1 italic">Insight #1: Speed to Freedom</p>
                 <p className="text-[11px] font-medium leading-relaxed">
-                  Maintaining a {savingsRatio.toFixed(1)}% savings ratio places you in the elite 1% of users. Freedom is projected in ~{freedomYear} years.
+                  Maintaining a {savingsRatio.toFixed(1)}% savings ratio places you in the {savingsRatio > 30 ? 'elite 1%' : 'top 10%'} of users. Freedom is projected in ~{freedomYear} years.
                 </p>
               </div>
 
               <div>
                 <p className="text-[8px] font-black uppercase tracking-widest opacity-50 mb-1 italic">Insight #2: Portfolio Alpha</p>
                 <p className="text-[11px] font-medium leading-relaxed">
-                  Current allocation risk is low. System suggests you could increase equity exposure. Tuning to 50% could add {new Intl.NumberFormat('vi-VN').format(Math.round(growthData[29].optimistic - growthData[29].base))} VND to your 30-year terminal value.
+                  Current allocation risk is {actualAllocations[0].actual < 30 ? 'Low' : 'Moderate'}. {actualAllocations[0].actual < 50 ? `System suggests you could increase equity exposure. Tuning to 50% could add substantial terminal value.` : 'Your equity exposure is aggressive and optimal.'}
                 </p>
               </div>
            </div>
@@ -207,7 +352,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
                   />
                   <Tooltip 
                     contentStyle={{ borderRadius: '4px', border: 'none', background: '#F4E3B2', color: '#74070E', fontSize: '10px', fontWeight: 'bold' }}
-                    formatter={(v: any) => [new Intl.NumberFormat('vi-VN').format(Math.round(v)) + ' VND', '']}
+                    formatter={(v: any) => [formatVND(v), '']}
                   />
                   <Legend 
                     verticalAlign="bottom" 
@@ -242,7 +387,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
 
             <div className="mt-auto p-4 bg-primary/5 border border-primary/10 rounded italic">
                <p className="text-[10px] text-gray-500 leading-relaxed">
-                 "Current structural integrity is <span className="text-primary font-bold">Robust</span>. Diversification across {VIETNAMESE_STOCKS.length} tickers effectively mitigates idiosyncratic market risk."
+                 "Current structural integrity is <span className="text-primary font-bold">{savingsRatio > 20 ? 'Robust' : 'Developing'}</span>. Diversification strategy effectively mitigates idiosyncratic market risk."
                </p>
             </div>
          </div>
@@ -251,7 +396,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ ratio, expectedCAGR 
   );
 };
 
-const AnalysisCard = ({ title, value, subValue, accent = "text-primary" }: { title: string, value: string, subValue: string, accent?: string }) => (
+const AnalysisCard: React.FC<{ title: string, value: string, subValue: string, accent?: string }> = ({ title, value, subValue, accent = "text-primary" }) => (
   <div className="bg-white p-6 border border-primary/5 rounded shadow-sm flex flex-col gap-1 transition-all hover:border-primary/20">
     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{title}</span>
     <span className={cn("text-2xl font-black", accent)}>{value}</span>
@@ -259,7 +404,7 @@ const AnalysisCard = ({ title, value, subValue, accent = "text-primary" }: { tit
   </div>
 );
 
-const HealthBar = ({ label, value, target }: { label: string, value: number, target: number }) => {
+const HealthBar: React.FC<{ label: string, value: number, target: number }> = ({ label, value, target }) => {
   const percentage = Math.min(100, (value / target) * 100);
   return (
     <div className="space-y-2">
@@ -272,6 +417,61 @@ const HealthBar = ({ label, value, target }: { label: string, value: number, tar
           initial={{ width: 0 }}
           whileInView={{ width: `${percentage}%` }}
           className="h-full bg-primary"
+        />
+      </div>
+    </div>
+  );
+};
+
+interface SuggestionCardProps {
+  assetName: string;
+  diff: number;
+  diffAmount: number;
+  currentPct: number;
+  targetPct: number;
+  currentVal: number;
+  targetVal: number;
+}
+
+const SuggestionCard: React.FC<SuggestionCardProps> = ({ 
+  assetName, diff, diffAmount, currentPct, targetPct, currentVal, targetVal 
+}) => {
+  const isIncrease = diff > 0;
+  
+  return (
+    <div className={cn(
+      "p-4 rounded border flex flex-col gap-3 transition-all hover:shadow-md",
+      isIncrease ? "bg-red-50 border-red-100" : "bg-blue-50 border-blue-100"
+    )}>
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col">
+          <span className="text-[8px] font-black uppercase tracking-widest opacity-60">{assetName}</span>
+          <span className={cn("text-xs font-black uppercase", isIncrease ? "text-red-700" : "text-blue-700")}>
+            {isIncrease ? "↑ Buy / Add" : "↓ Sell / Reduce"}
+          </span>
+        </div>
+        <div className={cn("px-2 py-0.5 rounded text-[9px] font-black", isIncrease ? "bg-red-600 text-white" : "bg-blue-600 text-white")}>
+          {formatVND(diffAmount)}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 border-t pt-2 border-black/5">
+        <div className="flex flex-col">
+          <span className="text-[7px] font-bold opacity-40 uppercase">Actual</span>
+          <span className="text-[10px] font-black">{currentPct}%</span>
+          <span className="text-[8px] font-medium opacity-60 leading-none">{formatVND(currentVal)}</span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-[7px] font-bold opacity-40 uppercase">Target</span>
+          <span className="text-[10px] font-black">{targetPct}%</span>
+          <span className="text-[8px] font-medium opacity-60 leading-none">{formatVND(targetVal)}</span>
+        </div>
+      </div>
+
+      <div className="mt-1 h-0.5 w-full bg-black/5 rounded-full overflow-hidden">
+        <div 
+          className={cn("h-full transition-all duration-1000", isIncrease ? "bg-red-600" : "bg-blue-600")}
+          style={{ width: `${Math.min(100, Math.abs(diff) * 2)}%` }}
         />
       </div>
     </div>

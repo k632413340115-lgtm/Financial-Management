@@ -11,7 +11,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatVND(amount: number) {
-  return new Intl.NumberFormat('vi-VN').format(amount) + ' VND';
+  return new Intl.NumberFormat('vi-VN', {
+    maximumFractionDigits: 0,
+  }).format(Math.round(amount)) + ' VND';
 }
 
 export function formatDate(dateStr: string) {

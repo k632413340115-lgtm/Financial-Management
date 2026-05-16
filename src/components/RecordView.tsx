@@ -57,7 +57,7 @@ export const RecordView: React.FC<RecordViewProps> = ({ records, onDelete, type 
                     "p-3 font-black text-right",
                     type === 'income' ? 'text-green-700' : 'text-red-700'
                   )}>
-                    {new Intl.NumberFormat('vi-VN').format(record.amount)}
+                    {formatVND(record.amount)}
                   </td>
                   <td className="p-3 text-center">
                     <button 

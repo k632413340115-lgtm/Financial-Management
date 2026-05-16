@@ -24,8 +24,6 @@ interface InvestmentViewProps {
   monthlyNetCashFlow: number;
   ratio: number;
   setRatio: (val: number) => void;
-  expectedCAGR: number;
-  setExpectedCAGR: (val: number) => void;
   stocks: Stock[];
   setStocks: (val: Stock[]) => void;
 }
@@ -35,24 +33,23 @@ const ASSET_CLASSES = [
   { name: 'Savings', ratio: 0.1, color: '#16a34a' },
   { name: 'Gold', ratio: 0.1, color: '#eab308' },
   { name: 'USD', ratio: 0.1, color: '#2563eb' },
-  { name: 'Cash', ratio: 0.1, color: '#64748b' },
+  { name: 'Cash', ratio: 0.2, color: '#64748b' },
 ];
 
 export const InvestmentView: React.FC<InvestmentViewProps> = ({ 
   monthlyNetCashFlow,
   ratio,
   setRatio,
-  expectedCAGR,
-  setExpectedCAGR,
   stocks,
   setStocks
 }) => {
   const [isEditingStocks, setIsEditingStocks] = React.useState(false);
+  const expectedCAGR = 0.18; // Fixed standard growth
 
   const monthlyInvestment = Math.max(0, monthlyNetCashFlow * ratio);
   
   const simulationData = React.useMemo(() => {
-    // Apply expectedCAGR to all stocks for the simulation
+    // Apply fixed CAGR to all stocks for the simulation
     const adjustedStocks = stocks.map(s => ({ ...s, expectedAnnualGrowth: expectedCAGR }));
     const rawData = simulateGrowth(monthlyInvestment, 30, adjustedStocks);
     
@@ -65,28 +62,61 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({
 
   const milestones = SIMULATION_PERIODS.map(years => {
     const data = simulationData.find(d => d.year === years);
+    const value = data?.investmentValue || 0;
+    const contributed = data?.totalContributed || 0;
+    const netGain = value - contributed;
+    const roi = contributed > 0 ? (netGain / contributed) * 100 : 0;
+    
     return {
       years,
-      value: data?.investmentValue || 0,
-      contributed: data?.totalContributed || 0,
-      label: years === 30 ? 'FINANCIAL FREEDOM' : years === 10 ? 'CONSERVATIVE MILESTONE' : 'COMPOUNDED GROWTH'
+      value,
+      contributed,
+      netGain,
+      roi,
+      label: years === 30 ? 'YEAR 30' : years === 20 ? 'YEAR 20' : 'YEAR 10'
     };
   });
 
-  const handleStockChange = (index: number, field: keyof Stock, value: string | number) => {
+  const handleStockChange = (index: number, field: keyof Stock | 'weight', value: string | number) => {
     const newStocks = [...stocks];
-    newStocks[index] = { ...newStocks[index], [field]: value };
+    if (field === 'weight') {
+      // Logic for updating weights if we added weight to type
+    }
+    newStocks[index] = { ...newStocks[index], [field]: value } as Stock;
     setStocks(newStocks);
   };
 
+  const netGain = milestones[milestones.length - 1].netGain;
+  const totalRoi = milestones[milestones.length - 1].roi;
+
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-700">
+      {/* Top Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded border border-primary/10 shadow-sm">
+          <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Capital Invested</p>
+          <p className="text-xl font-black text-primary">{formatVND(milestones[milestones.length - 1].contributed)}</p>
+        </div>
+        <div className="bg-primary p-4 rounded shadow-lg text-secondary">
+          <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Portfolio Value (30y)</p>
+          <p className="text-xl font-black">{formatVND(milestones[milestones.length - 1].value)}</p>
+        </div>
+        <div className="bg-white p-4 rounded border border-primary/10 shadow-sm">
+          <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Net Gain</p>
+          <p className="text-xl font-black text-green-600">+{formatVND(netGain)}</p>
+        </div>
+        <div className="bg-white p-4 rounded border border-primary/10 shadow-sm">
+          <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Overall ROI</p>
+          <p className="text-xl font-black text-primary">{(totalRoi).toFixed(1)}%</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-12 gap-4">
         {/* Left Side: Parameters & Allocation */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
           <section className="bg-primary p-4 rounded-lg text-secondary flex flex-col gap-3 shadow-lg">
             <div className="flex justify-between items-center border-b border-secondary/20 pb-1">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">Strategy Parameters</h2>
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em]">Simulator Parameters</h2>
               <button 
                 onClick={() => setIsEditingStocks(!isEditingStocks)}
                 className="p-1 hover:bg-white/10 rounded transition-colors"
@@ -110,23 +140,6 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({
                 onChange={(e) => setRatio(Number(e.target.value))}
                 className="w-full h-1 bg-secondary/30 rounded-full appearance-none cursor-pointer accent-secondary"
               />
-            </div>
-
-            <div className="mt-2">
-              <div className="flex justify-between text-[11px] mb-1 font-bold italic">
-                <span>EXPECTED CAGR</span>
-                <span className="text-secondary font-black">{Math.round(expectedCAGR * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min="0.15"
-                max="0.2"
-                step="0.005"
-                value={expectedCAGR}
-                onChange={(e) => setExpectedCAGR(Number(e.target.value))}
-                className="w-full h-1 bg-secondary/30 rounded-full appearance-none cursor-pointer accent-secondary"
-              />
-              <div className="text-[7px] uppercase font-bold opacity-60 tracking-wider mt-1">Equity Market Growth Rate (15% - 20%)</div>
             </div>
 
             <div className="mt-2 space-y-2">
@@ -244,7 +257,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({
                      backdropFilter: 'blur(4px)'
                    }}
                    itemStyle={{ padding: '2px 0' }}
-                   formatter={(v: number, name: string) => [new Intl.NumberFormat('vi-VN').format(Math.round(v)) + ' VND', name]}
+                   formatter={(v: number, name: string) => [formatVND(v), name]}
                    labelFormatter={(label) => `Year ${label} Distribution`}
                 />
                 {ASSET_CLASSES.slice().reverse().map(asset => (
@@ -263,23 +276,37 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({
             </ResponsiveContainer>
           </section>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {milestones.map((m, idx) => (
               <div 
                 key={m.years}
                 className={cn(
-                  "p-3 rounded border flex flex-col gap-1 transition-all hover:scale-[1.02]",
-                  idx === 2 ? "bg-primary text-secondary border-transparent shadow-lg" : "bg-gray-50 border-primary/10"
+                  "p-3 rounded border flex flex-col gap-2 transition-all hover:scale-[1.02]",
+                  idx === 2 ? "bg-primary text-secondary border-transparent shadow-lg" : "bg-white border-primary/10"
                 )}
               >
-                <div className="flex justify-between items-center overflow-hidden">
-                  <span className="text-[8px] font-bold uppercase truncate">{m.years}y {m.label}</span>
+                <div className="flex justify-between items-center bg-black/5 -mx-3 -mt-3 p-2 px-3 border-b border-black/5 mb-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest">{m.label}</span>
+                  <span className="text-[14px] font-black">{Math.round(m.roi)}% ROI</span>
                 </div>
-                <div className="text-lg font-black truncate">
-                  {new Intl.NumberFormat('vi-VN').format(m.value)}
-                </div>
-                <div className="text-[8px] opacity-60 uppercase tracking-widest font-bold">
-                  Contribution Total: {new Intl.NumberFormat('vi-VN').format(m.contributed)}
+                
+                <div className="space-y-1">
+                   <div className="flex flex-col">
+                     <span className="text-[8px] opacity-60 uppercase font-black tracking-widest">Capital Invested</span>
+                     <span className="text-[12px] font-bold">{formatVND(m.contributed)}</span>
+                   </div>
+                   <div className="flex flex-col">
+                     <span className="text-[8px] opacity-60 uppercase font-black tracking-widest">Portfolio Value</span>
+                     <span className={cn("text-xl font-black", idx === 2 ? "text-secondary" : "text-primary")}>
+                       {formatVND(m.value)}
+                     </span>
+                   </div>
+                   <div className="flex flex-col pt-1 border-t border-black/5">
+                     <span className="text-[8px] opacity-60 uppercase font-black tracking-widest">Net Gain</span>
+                     <span className={cn("text-[10px] font-bold", m.netGain >= 0 ? "text-green-600" : "text-red-500")}>
+                       {m.netGain >= 0 ? '+' : ''}{formatVND(m.netGain)}
+                     </span>
+                   </div>
                 </div>
               </div>
             ))}
@@ -312,7 +339,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = ({
               
               <div className="mt-3">
                 <div className="text-[14px] font-black text-primary">
-                  {new Intl.NumberFormat('vi-VN').format(Math.round((monthlyInvestment * 0.5) / stocks.length))} VND
+                  {formatVND((monthlyInvestment * 0.5) / stocks.length)}
                 </div>
                 <div className="text-[7px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Monthly Lot</div>
               </div>

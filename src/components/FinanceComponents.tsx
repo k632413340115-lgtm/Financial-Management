@@ -132,7 +132,7 @@ export const FinanceSummaryCard: React.FC<{
       "text-xl font-black",
       type === 'income' ? 'text-green-700' : type === 'expense' ? 'text-red-700' : 'text-primary'
     )}>
-      {new Intl.NumberFormat('vi-VN').format(amount)} <span className="text-[9px] text-gray-400 uppercase">VND</span>
+      {formatVND(amount)}
     </p>
   </div>
 );

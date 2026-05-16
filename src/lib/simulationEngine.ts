@@ -15,8 +15,8 @@ export interface MonthlySimulationResult {
 
 export const DEFAULT_ALLOCATIONS: AssetAllocation[] = [
   { type: 'Stocks', ratio: 0.5, expectedGrowth: 0.18 },
-  { type: 'Savings', ratio: 0.2, expectedGrowth: 0.07 },
-  { type: 'Cash', ratio: 0.1, expectedGrowth: 0 },
+  { type: 'Savings', ratio: 0.1, expectedGrowth: 0.07 },
+  { type: 'Cash', ratio: 0.2, expectedGrowth: 0 },
   { type: 'Gold', ratio: 0.1, expectedGrowth: 0.06 },
   { type: 'USD', ratio: 0.1, expectedGrowth: 0.02 },
 ];
@@ -65,10 +65,10 @@ export function simulateGrowth(
   const results: MonthlySimulationResult[] = [];
 
   for (let m = 1; m <= months; m++) {
-    // 1. Distribute monthly investment to asset classes (Total = 90% per image)
+    // 1. Distribute monthly investment to asset classes (Total = 100% per video)
     const monthlyToStocks = monthlyInvestment * 0.50;
     const monthlyToSavings = monthlyInvestment * 0.10;
-    const monthlyToCash = monthlyInvestment * 0.10;
+    const monthlyToCash = monthlyInvestment * 0.20;
     const monthlyToGold = monthlyInvestment * 0.10;
     const monthlyToUSD = monthlyInvestment * 0.10;
 
