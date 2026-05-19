@@ -28,7 +28,7 @@ export const FinanceForm: React.FC<FinanceFormProps> = ({ type, onSubmit }) => {
     onSubmit({
       type,
       name,
-      amount: Number(amount),
+      amount: Number(amount.replace(/\D/g, '')),
       date,
       notes,
       isFixed,
@@ -61,9 +61,12 @@ export const FinanceForm: React.FC<FinanceFormProps> = ({ type, onSubmit }) => {
         <div>
           <label className="density-label">Amount (VND)</label>
           <input
-            type="number"
+            type="text"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, '');
+              setAmount(val ? Number(val).toLocaleString('vi-VN') : '');
+            }}
             placeholder="0"
             className="density-input font-bold"
           />
