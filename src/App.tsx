@@ -86,10 +86,12 @@ export default function App() {
               <FinanceSummaryCard title="Total Income" amount={totals.allTimeIncome} type="income" />
               <FinanceSummaryCard title="Total Expense" amount={totals.allTimeExpense} type="expense" />
               <FinanceSummaryCard title="Monthly Surplus" amount={totals.net} type="net" />
-              <div className="bg-primary p-3 rounded shadow-sm">
-                <p className="text-[10px] uppercase text-secondary/70 font-bold tracking-widest truncate">Potential ({Math.round(investmentRatio * 100)}%)</p>
+              <div className={cn("p-3 rounded shadow-sm transition-colors", totals.net > 0 ? "bg-primary" : "bg-red-700")}>
+                <p className="text-[10px] uppercase text-secondary/70 font-bold tracking-widest truncate">
+                  {totals.net > 0 ? `Potential (${Math.round(investmentRatio * 100)}%)` : "DEFICIT ALERT"}
+                </p>
                 <p className="text-xl text-secondary font-black">
-                  {formatVND(totals.net * investmentRatio)}
+                  {formatVND(Math.max(0, totals.net * investmentRatio))}
                 </p>
               </div>
             </section>
